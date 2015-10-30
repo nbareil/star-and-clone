@@ -14,7 +14,7 @@ const targetDir string = "starred"
 
 var githubApiKey string
 
-func updateRepositories() {
+func updateRepositories(last time.Time) (*time.Time, error) {
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubApiKey},
@@ -22,15 +22,16 @@ func updateRepositories() {
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 
 	client := github.NewClient(tc)
+	now := time.Now()
 
-	options := &github.ActivityListStarredOptions{Sort: "created"}
+	options := &github.ActivityListStarredOptions{Sort: "updated"}
 	for page := 1; ; page++ {
 		options.Page = page
 
 		starred, res, err := client.Activity.ListStarred("", options)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not acquire starred repositories: %s", err)
-			return
+			return nil, err
 		}
 
 		for _, repo := range starred {
@@ -51,7 +52,7 @@ func updateRepositories() {
 					continue
 				}
 			} else {
-				updateNeeded := true // XXX
+				updateNeeded := repo.Repository.PushedAt.Time.After(last)
 				if updateNeeded {
 					r, err := git.OpenRepository(repoPath)
 					if err != nil {
@@ -78,6 +79,7 @@ func updateRepositories() {
 			}
 		}
 	}
+	return &now, nil
 }
 
 func main() {
@@ -89,8 +91,12 @@ func main() {
 		return
 	}
 
+	prev := time.Now()
 	for {
-		updateRepositories()
+		newUpdate, err := updateRepositories(prev)
+		if err == nil {
+			prev = *newUpdate
+		}
 		time.Sleep(20 * time.Minute)
 	}
 }
