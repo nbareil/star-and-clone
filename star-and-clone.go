@@ -48,7 +48,7 @@ func updateRepositories() {
 				_, err := git.Clone(*repo.Repository.CloneURL, repoPath, &git.CloneOptions{})
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Could not clone repository %s: %s", repo, err)
-					return
+					continue
 				}
 			} else {
 				updateNeeded := true // XXX
@@ -56,23 +56,21 @@ func updateRepositories() {
 					r, err := git.OpenRepository(repoPath)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Could not open repository %s: %s", repoPath, err)
-						return
+						continue
 					}
 
 					remote, err := r.Remotes.Lookup("origin")
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Could not get remote repository: %s", err)
-						return
+						continue
 					}
 
 					err = remote.Fetch([]string{""}, nil, "")
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Could not fetch new objets: %s", err)
-						return
+						continue
 					}
-
 				}
-
 			}
 
 			if page >= res.LastPage {
